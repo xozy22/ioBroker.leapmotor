@@ -1,0 +1,185 @@
+{
+  "i18n": false,
+  "type": "tabs",
+  "items": {
+    "loginTab": {
+      "type": "panel",
+      "label": "Anmeldung",
+      "items": {
+        "_loginHeader": {
+          "type": "staticText",
+          "text": "Zugangsdaten deines Leapmotor-Kontos (Leapmotor International). Empfehlung: ein zweites Konto anlegen, das Fahrzeug in der offiziellen App dorthin teilen und dieses geteilte Konto hier verwenden – sonst kann dich die App ausloggen.",
+          "newLine": true
+        },
+        "email": {
+          "type": "text",
+          "label": "E-Mail",
+          "newLine": true,
+          "sm": 12,
+          "md": 6,
+          "lg": 4
+        },
+        "password": {
+          "type": "password",
+          "label": "Passwort",
+          "repeat": false,
+          "newLine": true,
+          "sm": 12,
+          "md": 6,
+          "lg": 4
+        },
+        "vehiclePin": {
+          "type": "password",
+          "label": "Fahrzeug-PIN (optional, nur für Steuerbefehle)",
+          "repeat": false,
+          "newLine": true,
+          "sm": 12,
+          "md": 6,
+          "lg": 4
+        }
+      }
+    },
+    "certTab": {
+      "type": "panel",
+      "label": "Zertifikate",
+      "items": {
+        "_certHeader": {
+          "type": "staticText",
+          "text": "Der Login benötigt das App-Zertifikatsmaterial app_cert.pem und app_key.pem. Diese Dateien sind nicht im öffentlichen Repository enthalten. Entweder den vollständigen PEM-Inhalt einfügen ODER einen Dateipfad auf dem ioBroker-Host angeben. Es handelt sich um App-/Client-Material, nicht um deine Kontodaten.",
+          "newLine": true
+        },
+        "appCertPem": {
+          "type": "text",
+          "label": "app_cert.pem (PEM-Inhalt)",
+          "maxRows": 8,
+          "newLine": true,
+          "sm": 12,
+          "md": 12,
+          "lg": 6
+        },
+        "appKeyPem": {
+          "type": "text",
+          "label": "app_key.pem (PEM-Inhalt)",
+          "maxRows": 8,
+          "newLine": true,
+          "sm": 12,
+          "md": 12,
+          "lg": 6
+        },
+        "_pathHeader": {
+          "type": "staticText",
+          "text": "Alternativ: Pfade zu den Zertifikatsdateien auf dem ioBroker-Host (werden nur verwendet, wenn die PEM-Felder oben leer sind).",
+          "newLine": true
+        },
+        "appCertPath": {
+          "type": "text",
+          "label": "Pfad zu app_cert.pem",
+          "newLine": true,
+          "sm": 12,
+          "md": 6,
+          "lg": 6
+        },
+        "appKeyPath": {
+          "type": "text",
+          "label": "Pfad zu app_key.pem",
+          "newLine": true,
+          "sm": 12,
+          "md": 6,
+          "lg": 6
+        },
+        "accountP12Password": {
+          "type": "password",
+          "label": "Account-Zertifikatspasswort (optional, wird normalerweise automatisch abgeleitet)",
+          "repeat": false,
+          "newLine": true,
+          "sm": 12,
+          "md": 6,
+          "lg": 6
+        }
+      }
+    },
+    "pollTab": {
+      "type": "panel",
+      "label": "Abruf",
+      "items": {
+        "pollInterval": {
+          "type": "number",
+          "label": "Abrufintervall (Minuten)",
+          "min": 1,
+          "max": 1440,
+          "default": 5,
+          "newLine": true,
+          "sm": 12,
+          "md": 4,
+          "lg": 3
+        },
+        "ecoPollingEnabled": {
+          "type": "checkbox",
+          "label": "Eco-Polling aktivieren (seltener abrufen, wenn das Fahrzeug weder fährt noch lädt)",
+          "newLine": true,
+          "sm": 12,
+          "md": 8,
+          "lg": 6
+        },
+        "ecoPollInterval": {
+          "type": "number",
+          "label": "Eco-Abrufintervall (Minuten)",
+          "min": 1,
+          "max": 1440,
+          "default": 15,
+          "hidden": "!data.ecoPollingEnabled",
+          "newLine": true,
+          "sm": 12,
+          "md": 4,
+          "lg": 3
+        }
+      }
+    },
+    "advancedTab": {
+      "type": "panel",
+      "label": "Erweitert",
+      "items": {
+        "_advHeader": {
+          "type": "staticText",
+          "text": "Diese Werte müssen normalerweise nicht geändert werden.",
+          "newLine": true
+        },
+        "baseUrl": {
+          "type": "text",
+          "label": "API-Basis-URL",
+          "default": "https://appgateway.leapmotor-international.de",
+          "newLine": true,
+          "sm": 12,
+          "md": 8,
+          "lg": 6
+        },
+        "language": {
+          "type": "text",
+          "label": "Sprache (acceptLanguage)",
+          "default": "en-GB",
+          "newLine": true,
+          "sm": 12,
+          "md": 4,
+          "lg": 3
+        },
+        "appVersion": {
+          "type": "text",
+          "label": "App-Version",
+          "default": "1.12.3",
+          "newLine": true,
+          "sm": 12,
+          "md": 4,
+          "lg": 3
+        },
+        "deviceId": {
+          "type": "text",
+          "label": "Feste Device-ID (optional, leer = automatisch)",
+          "newLine": true,
+          "sm": 12,
+          "md": 8,
+          "lg": 6
+        }
+      }
+    }
+  }
+}

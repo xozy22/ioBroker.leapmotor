@@ -1,0 +1,370 @@
+'use strict';
+
+/**
+ * ioBroker-Adapter für Leapmotor-Elektrofahrzeuge.
+ * Portiert von der Home-Assistant-Integration https://github.com/kerniger/leapmotor-ha
+ */
+
+const utils = require('@iobroker/adapter-core');
+const fs = require('fs');
+const { LeapmotorApiClient } = require('./lib/api');
+const { normalizeVehicle } = require('./lib/normalize');
+const { CHANNEL_NAMES, STATE_META, CONTROLS } = require('./lib/states');
+const { LeapmotorMissingAppCertError } = require('./lib/errors');
+
+class LeapmotorAdapter extends utils.Adapter {
+    constructor(options) {
+        super({ ...options, name: 'leapmotor' });
+        this.client = null;
+        this.pollTimer = null;
+        this.polling = false;
+        this.stopping = false;
+        this.knownObjects = new Set();
+        this.controlMap = new Map(); // controlId -> control-Definition
+
+        for (const control of CONTROLS) {
+            this.controlMap.set(control.id, control);
+        }
+
+        this.on('ready', this.onReady.bind(this));
+        this.on('stateChange', this.onStateChange.bind(this));
+        this.on('unload', this.onUnload.bind(this));
+    }
+
+    async onReady() {
+        this.setState('info.connection', false, true);
+
+        const config = this.config;
+        if (!config.email || !config.password) {
+            this.log.error('E-Mail und Passwort müssen in der Adapter-Konfiguration hinterlegt werden.');
+            return;
+        }
+
+        let staticCert;
+        try {
+            staticCert = this._loadStaticCert();
+        } catch (err) {
+            this.log.error(`App-Zertifikat konnte nicht geladen werden: ${err.message}`);
+            return;
+        }
+
+        // Sensible Felder werden von ioBroker automatisch entschlüsselt geliefert.
+        this.client = new LeapmotorApiClient({
+            username: config.email,
+            password: config.password,
+            operationPassword: config.vehiclePin || null,
+            accountP12Password: config.accountP12Password || null,
+            staticCert,
+            baseUrl: config.baseUrl || undefined,
+            language: config.language || undefined,
+            appVersion: config.appVersion || undefined,
+            deviceId: config.deviceId || null,
+            logger: {
+                debug: m => this.log.debug(m),
+                info: m => this.log.info(m),
+                warn: m => this.log.warn(m),
+                error: m => this.log.error(m),
+            },
+        });
+
+        this.normalIntervalMs = Math.max(1, parseInt(config.pollInterval, 10) || 5) * 60 * 1000;
+        this.ecoIntervalMs = Math.max(1, parseInt(config.ecoPollInterval, 10) || 15) * 60 * 1000;
+        this.ecoPollingEnabled = Boolean(config.ecoPollingEnabled);
+
+        await this.subscribeStatesAsync('*.control.*');
+
+        // Erster Abruf
+        await this.poll();
+    }
+
+    _loadStaticCert() {
+        const config = this.config;
+        let cert = config.appCertPem && config.appCertPem.trim() ? config.appCertPem : null;
+        let key = config.appKeyPem && config.appKeyPem.trim() ? config.appKeyPem : null;
+
+        if (!cert && config.appCertPath) {
+            cert = fs.readFileSync(config.appCertPath, 'utf-8');
+        }
+        if (!key && config.appKeyPath) {
+            key = fs.readFileSync(config.appKeyPath, 'utf-8');
+        }
+        if (!cert || !key) {
+            throw new LeapmotorMissingAppCertError(
+                'app_cert.pem / app_key.pem fehlen. Bitte als Datei-Pfad oder als PEM-Text in der Konfiguration hinterlegen.',
+            );
+        }
+        return { cert, key };
+    }
+
+    /**
+     * Plant den nächsten Poll mit dynamischem Intervall.
+     *
+     * @param intervalMs
+     */
+    _scheduleNextPoll(intervalMs) {
+        if (this.stopping) {
+            return;
+        }
+        if (this.pollTimer) {
+            this.clearTimeout(this.pollTimer);
+        }
+        this.pollTimer = this.setTimeout(() => {
+            this.pollTimer = null;
+            this.poll();
+        }, intervalMs);
+    }
+
+    /** Führt einen Abruf durch und schreibt die Daten in die States. */
+    async poll() {
+        if (this.polling || this.stopping) {
+            return;
+        }
+        this.polling = true;
+        let anyActive = false;
+        try {
+            const data = await this.client.fetchData();
+            this.setState('info.connection', true, true);
+
+            const vins = Object.keys(data.vehicles);
+            this.log.debug(`Leapmotor: ${vins.length} Fahrzeug(e) abgerufen`);
+
+            for (const vin of vins) {
+                const normalized = normalizeVehicle(data.vehicles[vin], data.user_id);
+                await this._ensureVehicleObjects(vin, normalized);
+                await this._writeVehicleStates(vin, normalized);
+                if (normalized.status.is_driving || normalized.charging.is_charging) {
+                    anyActive = true;
+                }
+            }
+        } catch (err) {
+            this.setState('info.connection', false, true);
+            this.log.error(`Leapmotor-Abruf fehlgeschlagen: ${err.message}`);
+        } finally {
+            this.polling = false;
+            const interval = this.ecoPollingEnabled && !anyActive ? this.ecoIntervalMs : this.normalIntervalMs;
+            this._scheduleNextPoll(interval);
+        }
+    }
+
+    // ---- Objektbaum ----
+
+    _vinId(vin) {
+        return String(vin).replace(this.FORBIDDEN_CHARS, '_').replace(/[.\s]/g, '_');
+    }
+
+    async _ensureObject(id, obj) {
+        if (this.knownObjects.has(id)) {
+            return;
+        }
+        await this.setObjectNotExistsAsync(id, obj);
+        this.knownObjects.add(id);
+    }
+
+    async _ensureVehicleObjects(vin, normalized) {
+        const base = this._vinId(vin);
+        if (this.knownObjects.has(base)) {
+            return; // Struktur bereits angelegt
+        }
+
+        const nickname = normalized.vehicle.nickname || vin;
+        await this._ensureObject(base, {
+            type: 'device',
+            common: { name: `${nickname} (${vin})` },
+            native: { vin },
+        });
+
+        // Lese-Kanäle und States
+        for (const [channel, fields] of Object.entries(normalized)) {
+            if (channel === 'raw_updated_at') {
+                continue;
+            }
+            await this._ensureObject(`${base}.${channel}`, {
+                type: 'channel',
+                common: { name: CHANNEL_NAMES[channel] || channel },
+                native: {},
+            });
+            for (const [field, value] of Object.entries(fields)) {
+                await this._ensureObject(`${base}.${channel}.${field}`, this._readStateObject(channel, field, value));
+            }
+        }
+
+        // Steuer-Kanal
+        await this._ensureObject(`${base}.control`, {
+            type: 'channel',
+            common: { name: 'Steuerung' },
+            native: {},
+        });
+        for (const control of CONTROLS) {
+            const common = {
+                name: control.name,
+                type: control.type,
+                role: control.role,
+                read: true,
+                write: true,
+                def: control.type === 'boolean' ? false : 0,
+            };
+            if (control.unit) {
+                common.unit = control.unit;
+            }
+            if (control.min !== undefined) {
+                common.min = control.min;
+            }
+            if (control.max !== undefined) {
+                common.max = control.max;
+            }
+            await this._ensureObject(`${base}.control.${control.id}`, {
+                type: 'state',
+                common,
+                native: { vin },
+            });
+        }
+    }
+
+    _readStateObject(channel, field, value) {
+        const metaKey = `${channel}.${field}`;
+        const meta = STATE_META[metaKey] || {};
+        let type = meta.type;
+        if (!type) {
+            if (typeof value === 'boolean') {
+                type = 'boolean';
+            } else if (typeof value === 'number') {
+                type = 'number';
+            } else {
+                type = 'string';
+            }
+        }
+        const common = {
+            name: field,
+            type,
+            role: meta.role || 'state',
+            read: true,
+            write: false,
+        };
+        if (meta.unit) {
+            common.unit = meta.unit;
+        }
+        return { type: 'state', common, native: {} };
+    }
+
+    async _writeVehicleStates(vin, normalized) {
+        const base = this._vinId(vin);
+        for (const [channel, fields] of Object.entries(normalized)) {
+            if (channel === 'raw_updated_at') {
+                continue;
+            }
+            for (const [field, value] of Object.entries(fields)) {
+                await this.setStateAsync(`${base}.${channel}.${field}`, {
+                    val: this._toStateValue(value),
+                    ack: true,
+                });
+            }
+        }
+    }
+
+    _toStateValue(value) {
+        if (value === undefined) {
+            return null;
+        }
+        if (value === null) {
+            return null;
+        }
+        if (Array.isArray(value) || typeof value === 'object') {
+            return JSON.stringify(value);
+        }
+        return value;
+    }
+
+    // ---- Steuerung ----
+
+    async onStateChange(id, state) {
+        if (!state || state.ack || this.stopping || !this.client) {
+            return;
+        }
+
+        const parts = id.split('.');
+        const controlIdx = parts.indexOf('control');
+        if (controlIdx < 0 || controlIdx + 1 >= parts.length) {
+            return;
+        }
+
+        const vinId = parts[controlIdx - 1];
+        const controlId = parts.slice(controlIdx + 1).join('.');
+
+        // Zugehörige VIN aus dem Objekt-native lesen (robuster als ID-Rückübersetzung)
+        let vin = vinId;
+        try {
+            const obj = await this.getObjectAsync(id);
+            if (obj && obj.native && obj.native.vin) {
+                vin = obj.native.vin;
+            }
+        } catch {
+            // Fallback auf vinId
+        }
+
+        if (controlId === 'refresh') {
+            this.log.info('Manuelle Aktualisierung ausgelöst');
+            await this.setStateAsync(id, { val: false, ack: true });
+            if (this.pollTimer) {
+                this.clearTimeout(this.pollTimer);
+            }
+            this.pollTimer = null;
+            await this.poll();
+            return;
+        }
+
+        const control = this.controlMap.get(controlId);
+        if (!control || !control.handler) {
+            this.log.warn(`Unbekannter Steuerbefehl: ${controlId}`);
+            return;
+        }
+
+        try {
+            this.log.info(`Steuerbefehl '${controlId}' für VIN ${vin} (Wert: ${state.val})`);
+            await control.handler(this.client, vin, state.val);
+            await this.setStateAsync(id, { val: state.val, ack: true });
+            // Nach einer Aktion zeitnah aktualisieren
+            this._scheduleQuickRefresh();
+        } catch (err) {
+            this.log.error(`Steuerbefehl '${controlId}' fehlgeschlagen: ${err.message}`);
+        }
+    }
+
+    _scheduleQuickRefresh() {
+        if (this.stopping) {
+            return;
+        }
+        if (this.quickRefreshTimer) {
+            this.clearTimeout(this.quickRefreshTimer);
+        }
+        this.quickRefreshTimer = this.setTimeout(() => {
+            this.quickRefreshTimer = null;
+            this.poll();
+        }, 8000);
+    }
+
+    async onUnload(callback) {
+        this.stopping = true;
+        try {
+            if (this.pollTimer) {
+                this.clearTimeout(this.pollTimer);
+                this.pollTimer = null;
+            }
+            if (this.quickRefreshTimer) {
+                this.clearTimeout(this.quickRefreshTimer);
+                this.quickRefreshTimer = null;
+            }
+            this.setState('info.connection', false, true);
+        } catch {
+            // ignorieren
+        } finally {
+            callback();
+        }
+    }
+}
+
+if (require.main !== module) {
+    module.exports = options => new LeapmotorAdapter(options);
+    module.exports.LeapmotorAdapter = LeapmotorAdapter;
+} else {
+    new LeapmotorAdapter();
+}

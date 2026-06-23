@@ -1,0 +1,8 @@
+# Einheitliche Zeilenenden (LF) für alle Textdateien
+* text=auto eol=lf
+
+# Binärdateien
+*.png binary
+*.jpg binary
+*.p12 binary
+*.pfx binary

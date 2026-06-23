@@ -1,0 +1,8 @@
+.dev-server/
+node_modules/
+test/
+admin/build/
+build/
+dist/
+_ha_reference/
+_ca_reference/

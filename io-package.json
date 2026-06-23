@@ -1,0 +1,119 @@
+{
+  "common": {
+    "name": "leapmotor",
+    "version": "0.1.0",
+    "title": "Leapmotor",
+    "news": {
+      "0.1.0": {
+        "en": "Initial port of the Leapmotor Home Assistant integration to ioBroker.",
+        "de": "Erste Portierung der Leapmotor-Home-Assistant-Integration nach ioBroker."
+      }
+    },
+    "titleLang": {
+      "en": "Leapmotor",
+      "de": "Leapmotor",
+      "ru": "Leapmotor",
+      "pt": "Leapmotor",
+      "nl": "Leapmotor",
+      "fr": "Leapmotor",
+      "it": "Leapmotor",
+      "es": "Leapmotor",
+      "pl": "Leapmotor",
+      "uk": "Leapmotor",
+      "zh-cn": "Leapmotor"
+    },
+    "desc": {
+      "en": "Connects Leapmotor electric vehicles (Leapmotor International) to ioBroker.",
+      "de": "Bindet Leapmotor-Elektrofahrzeuge (Leapmotor International) an ioBroker an."
+    },
+    "authors": [
+      "Dennis Kobiolka <dennis.kobiolka@gmx.de>"
+    ],
+    "keywords": [
+      "leapmotor",
+      "ev",
+      "electric vehicle",
+      "car"
+    ],
+    "license": "MIT",
+    "platform": "Javascript/Node.js",
+    "main": "main.js",
+    "icon": "leapmotor.png",
+    "enabled": true,
+    "extIcon": "https://raw.githubusercontent.com/xozy22/ioBroker.leapmotor/main/admin/leapmotor.png",
+    "readme": "https://github.com/xozy22/ioBroker.leapmotor/blob/main/README.md",
+    "loglevel": "info",
+    "mode": "daemon",
+    "type": "vehicle",
+    "compact": true,
+    "tier": 3,
+    "connectionType": "cloud",
+    "dataSource": "poll",
+    "adminUI": {
+      "config": "json"
+    },
+    "dependencies": [
+      {
+        "js-controller": ">=5.0.19"
+      }
+    ],
+    "globalDependencies": [
+      {
+        "admin": ">=6.13.16"
+      }
+    ]
+  },
+  "native": {
+    "email": "",
+    "password": "",
+    "vehiclePin": "",
+    "appCertPath": "",
+    "appKeyPath": "",
+    "appCertPem": "",
+    "appKeyPem": "",
+    "accountP12Password": "",
+    "baseUrl": "https://appgateway.leapmotor-international.de",
+    "language": "en-GB",
+    "appVersion": "1.12.3",
+    "deviceId": "",
+    "pollInterval": 5,
+    "ecoPollingEnabled": false,
+    "ecoPollInterval": 15
+  },
+  "encryptedNative": [
+    "password",
+    "vehiclePin",
+    "accountP12Password"
+  ],
+  "protectedNative": [
+    "password",
+    "vehiclePin",
+    "accountP12Password",
+    "appCertPem",
+    "appKeyPem"
+  ],
+  "objects": [],
+  "instanceObjects": [
+    {
+      "_id": "info",
+      "type": "channel",
+      "common": {
+        "name": "Information"
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.connection",
+      "type": "state",
+      "common": {
+        "role": "indicator.connected",
+        "name": "Verbindung zur Leapmotor-Cloud",
+        "type": "boolean",
+        "read": true,
+        "write": false,
+        "def": false
+      },
+      "native": {}
+    }
+  ]
+}

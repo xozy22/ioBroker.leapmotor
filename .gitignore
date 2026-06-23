@@ -1,0 +1,23 @@
+node_modules/
+.idea/
+.vscode/
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Lokale Referenz-Repos (nur zum Studieren, nicht Teil des Adapters)
+_ha_reference/
+_ca_reference/
+
+# Zertifikate / Geheimnisse NIEMALS committen
+*.pem
+*.p12
+*.pfx
+*.crt
+*.key
+certs/
+test/credentials.json
+
+# Lokale Krypto-Vergleichstests
+_test/
