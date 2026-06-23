@@ -23,14 +23,24 @@ wurde aus dem Python-Projekt übernommen.
 
 ### App-Zertifikate (zwingend)
 
-Der Login benötigt App-Client-Zertifikatsmaterial:
+Der Login benötigt App-Client-Zertifikatsmaterial (`app.crt` / `app.key`) für die
+mTLS-Verbindung. Es handelt sich um App-/Client-Material, **nicht** um deine
+persönlichen Kontodaten. Es ist bewusst **nicht** im Adapter enthalten. Drei Wege:
 
-- `app_cert.pem`
-- `app_key.pem`
-
-Diese Dateien sind **nicht** im öffentlichen Repository enthalten. Es handelt sich um
-App-/Client-Material (nicht um deine persönlichen Kontodaten). Wenn du bereits die
-Home-Assistant-Integration nutzt, liegen sie dort unter `/config/leapmotor/`.
+1. **Automatisch laden (Standard, empfohlen):** Im Tab *Zertifikate* die Quelle
+   „Automatisch von URL laden" wählen. Der Adapter lädt `app.crt`/`app.key` beim
+   Start von einem Community-Repository (Standard:
+   [markoceri/leapmotor-certs](https://github.com/markoceri/leapmotor-certs)),
+   validiert sie und speichert sie lokal zwischen. Mit dem Button
+   *„Zertifikate jetzt laden & testen"* kannst du das sofort prüfen.
+   > ⚠️ Dabei wird ein Client-Zertifikat samt privatem Schlüssel von einer
+   > **fremden Quelle** geladen. Vertraue nur Quellen, die du kennst – die URL
+   > ist konfigurierbar (z. B. ein eigener Fork).
+2. **Manuell – PEM-Inhalt:** Quelle „Manuell" wählen und den Inhalt von `app.crt`
+   und `app.key` einfügen.
+3. **Manuell – Dateipfad:** Pfade zu den Dateien auf dem ioBroker-Host angeben.
+   Wenn du bereits die Home-Assistant-Integration nutzt, liegen sie dort unter
+   `/config/leapmotor/`.
 
 Dein normaler Leapmotor-Benutzername und das Passwort werden zusätzlich benötigt.
 Eine **Fahrzeug-PIN** ist optional und nur für Fernsteuerungsbefehle erforderlich.
@@ -68,7 +78,10 @@ Da der Adapter (noch) nicht im offiziellen ioBroker-Repo ist, per GitHub/lokal i
 |-----|------|--------------|
 | Anmeldung | E-Mail / Passwort | Leapmotor-Kontodaten |
 | Anmeldung | Fahrzeug-PIN | Optional, nur für Steuerbefehle |
-| Zertifikate | app_cert.pem / app_key.pem | PEM-Inhalt einfügen **oder** Dateipfad angeben |
+| Zertifikate | Zertifikatsquelle | „Automatisch von URL laden" (Standard) **oder** „Manuell" |
+| Zertifikate | URL zu app.crt / app.key | Bei Auto-Quelle; Standard: markoceri/leapmotor-certs |
+| Zertifikate | Zertifikate jetzt laden & testen | Button: lädt und validiert sofort |
+| Zertifikate | app.crt / app.key (PEM oder Pfad) | Nur bei manueller Quelle |
 | Zertifikate | Account-Zertifikatspasswort | Optional, wird sonst automatisch abgeleitet |
 | Abruf | Abrufintervall | Standard 5 Minuten |
 | Abruf | Eco-Polling | Seltener abrufen, wenn das Fahrzeug ruht |

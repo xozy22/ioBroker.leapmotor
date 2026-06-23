@@ -7,10 +7,12 @@
 
 const utils = require('@iobroker/adapter-core');
 const fs = require('fs');
+const path = require('path');
 const { LeapmotorApiClient } = require('./lib/api');
 const { normalizeVehicle } = require('./lib/normalize');
 const { CHANNEL_NAMES, STATE_META, CONTROLS } = require('./lib/states');
 const { LeapmotorMissingAppCertError } = require('./lib/errors');
+const { downloadCerts, DEFAULT_CERT_URL_CRT, DEFAULT_CERT_URL_KEY } = require('./lib/certloader');
 
 class LeapmotorAdapter extends utils.Adapter {
     constructor(options) {
@@ -28,6 +30,7 @@ class LeapmotorAdapter extends utils.Adapter {
 
         this.on('ready', this.onReady.bind(this));
         this.on('stateChange', this.onStateChange.bind(this));
+        this.on('message', this.onMessage.bind(this));
         this.on('unload', this.onUnload.bind(this));
     }
 
@@ -42,7 +45,7 @@ class LeapmotorAdapter extends utils.Adapter {
 
         let staticCert;
         try {
-            staticCert = this._loadStaticCert();
+            staticCert = await this._resolveStaticCert();
         } catch (err) {
             this.log.error(`App-Zertifikat konnte nicht geladen werden: ${err.message}`);
             return;
@@ -77,7 +80,13 @@ class LeapmotorAdapter extends utils.Adapter {
         await this.poll();
     }
 
-    _loadStaticCert() {
+    /**
+     * Lädt manuell konfiguriertes Zertifikatsmaterial (PEM-Text oder Dateipfad).
+     * Gibt null zurück, wenn nichts vollständig konfiguriert ist.
+     *
+     * @returns {{cert: string, key: string} | null}
+     */
+    _loadManualCert() {
         const config = this.config;
         let cert = config.appCertPem && config.appCertPem.trim() ? config.appCertPem : null;
         let key = config.appKeyPem && config.appKeyPem.trim() ? config.appKeyPem : null;
@@ -89,11 +98,126 @@ class LeapmotorAdapter extends utils.Adapter {
             key = fs.readFileSync(config.appKeyPath, 'utf-8');
         }
         if (!cert || !key) {
-            throw new LeapmotorMissingAppCertError(
-                'app_cert.pem / app_key.pem fehlen. Bitte als Datei-Pfad oder als PEM-Text in der Konfiguration hinterlegen.',
-            );
+            return null;
         }
         return { cert, key };
+    }
+
+    /**
+     * Ermittelt das App-Zertifikatsmaterial je nach gewählter Quelle.
+     * Bei "auto" wird von der konfigurierten URL geladen und lokal zwischengespeichert;
+     * schlägt der Download fehl, wird auf den Cache (und dann manuell) zurückgegriffen.
+     *
+     * @returns {Promise<{cert: string, key: string}>}
+     */
+    async _resolveStaticCert() {
+        const config = this.config;
+        const source = config.certSource || 'auto';
+
+        if (source === 'manual') {
+            const manual = this._loadManualCert();
+            if (!manual) {
+                throw new LeapmotorMissingAppCertError(
+                    'Manuelle Zertifikatsquelle gewählt, aber app_cert.pem / app_key.pem fehlen ' +
+                        '(PEM-Text oder Dateipfad in der Konfiguration hinterlegen).',
+                );
+            }
+            return manual;
+        }
+
+        // source === 'auto': von URL laden, mit Cache- und Manuell-Fallback
+        const certUrl = config.certUrlCrt || DEFAULT_CERT_URL_CRT;
+        const keyUrl = config.certUrlKey || DEFAULT_CERT_URL_KEY;
+        try {
+            const certs = await downloadCerts({ certUrl, keyUrl });
+            await this._cacheCerts(certs);
+            this.log.info('App-Zertifikate erfolgreich von der URL geladen.');
+            return certs;
+        } catch (err) {
+            this.log.warn(`Zertifikat-Download fehlgeschlagen: ${err.message}`);
+            const cached = await this._loadCachedCerts();
+            if (cached) {
+                this.log.info('Zwischengespeicherte App-Zertifikate werden verwendet.');
+                return cached;
+            }
+            const manual = this._loadManualCert();
+            if (manual) {
+                this.log.info('Manuell hinterlegte App-Zertifikate werden als Fallback verwendet.');
+                return manual;
+            }
+            throw new LeapmotorMissingAppCertError(
+                'Keine App-Zertifikate verfügbar: Download fehlgeschlagen, kein Cache und keine manuelle Hinterlegung.',
+            );
+        }
+    }
+
+    /** Verzeichnis für zwischengespeicherte Zertifikate. */
+    _certCacheDir() {
+        return utils.getAbsoluteInstanceDataDir(this);
+    }
+
+    /**
+     * Speichert heruntergeladene Zertifikate im Instanz-Datenverzeichnis.
+     *
+     * @param {{cert: string, key: string}} certs
+     */
+    async _cacheCerts(certs) {
+        try {
+            const dir = this._certCacheDir();
+            await fs.promises.mkdir(dir, { recursive: true });
+            await fs.promises.writeFile(path.join(dir, 'app_cert.pem'), certs.cert, 'utf-8');
+            await fs.promises.writeFile(path.join(dir, 'app_key.pem'), certs.key, 'utf-8');
+        } catch (err) {
+            this.log.debug(`Zertifikate konnten nicht zwischengespeichert werden: ${err.message}`);
+        }
+    }
+
+    /**
+     * Lädt zuvor zwischengespeicherte Zertifikate, falls vorhanden.
+     *
+     * @returns {Promise<{cert: string, key: string} | null>}
+     */
+    async _loadCachedCerts() {
+        try {
+            const dir = this._certCacheDir();
+            const cert = await fs.promises.readFile(path.join(dir, 'app_cert.pem'), 'utf-8');
+            const key = await fs.promises.readFile(path.join(dir, 'app_key.pem'), 'utf-8');
+            if (cert && key) {
+                return { cert, key };
+            }
+        } catch {
+            // kein Cache vorhanden
+        }
+        return null;
+    }
+
+    /**
+     * Behandelt Nachrichten aus der Admin-Oberfläche (Lade-Button).
+     *
+     * @param {object} obj
+     */
+    async onMessage(obj) {
+        if (!obj || typeof obj !== 'object' || !obj.command) {
+            return;
+        }
+        if (obj.command === 'loadCerts') {
+            const msg = obj.message || {};
+            const certUrl = (msg.certUrlCrt && msg.certUrlCrt.trim()) || this.config.certUrlCrt || DEFAULT_CERT_URL_CRT;
+            const keyUrl = (msg.certUrlKey && msg.certUrlKey.trim()) || this.config.certUrlKey || DEFAULT_CERT_URL_KEY;
+            let result;
+            try {
+                const certs = await downloadCerts({ certUrl, keyUrl });
+                await this._cacheCerts(certs);
+                result = {
+                    result: `Zertifikate erfolgreich geladen und validiert (app.crt ${certs.cert.length} Bytes, app.key ${certs.key.length} Bytes).`,
+                };
+            } catch (err) {
+                result = { error: `Laden fehlgeschlagen: ${err.message}` };
+            }
+            if (obj.callback) {
+                this.sendTo(obj.from, obj.command, result, obj.callback);
+            }
+        }
     }
 
     /**

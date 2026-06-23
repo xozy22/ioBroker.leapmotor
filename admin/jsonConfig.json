@@ -45,13 +45,70 @@
       "items": {
         "_certHeader": {
           "type": "staticText",
-          "text": "Der Login benötigt das App-Zertifikatsmaterial app_cert.pem und app_key.pem. Diese Dateien sind nicht im öffentlichen Repository enthalten. Entweder den vollständigen PEM-Inhalt einfügen ODER einen Dateipfad auf dem ioBroker-Host angeben. Es handelt sich um App-/Client-Material, nicht um deine Kontodaten.",
+          "text": "Der Login benötigt das App-Zertifikatsmaterial (app.crt / app.key) für die mTLS-Verbindung. Dieses Material ist nicht Teil des Adapters. Empfohlen: automatisch von einem Community-Repository laden. Alternativ kannst du es manuell hinterlegen.",
+          "newLine": true
+        },
+        "certSource": {
+          "type": "select",
+          "label": "Zertifikatsquelle",
+          "def": "auto",
+          "newLine": true,
+          "sm": 12,
+          "md": 6,
+          "lg": 4,
+          "options": [
+            { "label": "Automatisch von URL laden (empfohlen)", "value": "auto" },
+            { "label": "Manuell (PEM-Inhalt oder Dateipfad)", "value": "manual" }
+          ]
+        },
+        "_autoHint": {
+          "type": "staticText",
+          "hidden": "data.certSource === 'manual'",
+          "text": "Hinweis: Es werden ein Client-Zertifikat und ein privater Schlüssel von der angegebenen URL geladen (Standard: markoceri/leapmotor-certs). Vertraue nur Quellen, die du kennst. Die Zertifikate werden lokal zwischengespeichert und bei jedem Adapterstart aktualisiert.",
+          "newLine": true
+        },
+        "certUrlCrt": {
+          "type": "text",
+          "label": "URL zu app.crt",
+          "hidden": "data.certSource === 'manual'",
+          "newLine": true,
+          "sm": 12,
+          "md": 12,
+          "lg": 8
+        },
+        "certUrlKey": {
+          "type": "text",
+          "label": "URL zu app.key",
+          "hidden": "data.certSource === 'manual'",
+          "newLine": true,
+          "sm": 12,
+          "md": 12,
+          "lg": 8
+        },
+        "loadCertsBtn": {
+          "type": "sendTo",
+          "label": "Zertifikate jetzt laden & testen",
+          "command": "loadCerts",
+          "jsonData": "{\"certUrlCrt\": \"${data.certUrlCrt}\", \"certUrlKey\": \"${data.certUrlKey}\"}",
+          "variant": "contained",
+          "showProcessState": true,
+          "hidden": "data.certSource === 'manual'",
+          "newLine": true,
+          "sm": 12,
+          "md": 6,
+          "lg": 4
+        },
+        "_manualHint": {
+          "type": "staticText",
+          "hidden": "data.certSource !== 'manual'",
+          "text": "Den vollständigen PEM-Inhalt einfügen ODER einen Dateipfad auf dem ioBroker-Host angeben.",
           "newLine": true
         },
         "appCertPem": {
           "type": "text",
-          "label": "app_cert.pem (PEM-Inhalt)",
+          "label": "app.crt / app_cert.pem (PEM-Inhalt)",
           "maxRows": 8,
+          "hidden": "data.certSource !== 'manual'",
           "newLine": true,
           "sm": 12,
           "md": 12,
@@ -59,21 +116,18 @@
         },
         "appKeyPem": {
           "type": "text",
-          "label": "app_key.pem (PEM-Inhalt)",
+          "label": "app.key / app_key.pem (PEM-Inhalt)",
           "maxRows": 8,
+          "hidden": "data.certSource !== 'manual'",
           "newLine": true,
           "sm": 12,
           "md": 12,
           "lg": 6
         },
-        "_pathHeader": {
-          "type": "staticText",
-          "text": "Alternativ: Pfade zu den Zertifikatsdateien auf dem ioBroker-Host (werden nur verwendet, wenn die PEM-Felder oben leer sind).",
-          "newLine": true
-        },
         "appCertPath": {
           "type": "text",
-          "label": "Pfad zu app_cert.pem",
+          "label": "Pfad zu app.crt (Alternative zum PEM-Inhalt)",
+          "hidden": "data.certSource !== 'manual'",
           "newLine": true,
           "sm": 12,
           "md": 6,
@@ -81,7 +135,8 @@
         },
         "appKeyPath": {
           "type": "text",
-          "label": "Pfad zu app_key.pem",
+          "label": "Pfad zu app.key (Alternative zum PEM-Inhalt)",
+          "hidden": "data.certSource !== 'manual'",
           "newLine": true,
           "sm": 12,
           "md": 6,

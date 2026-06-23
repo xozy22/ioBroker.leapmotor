@@ -27,7 +27,7 @@ function mockCtx(config = {}) {
         _readStateObject: LeapmotorAdapter.prototype._readStateObject,
         _toStateValue: LeapmotorAdapter.prototype._toStateValue,
         _vinId: LeapmotorAdapter.prototype._vinId,
-        _loadStaticCert: LeapmotorAdapter.prototype._loadStaticCert,
+        _loadManualCert: LeapmotorAdapter.prototype._loadManualCert,
     };
 }
 
@@ -67,26 +67,43 @@ describe('main.js Hilfsmethoden', () => {
         expect(ctx._vinId('AB CD.EF')).to.equal('AB_CD_EF');
     });
 
-    it('_loadStaticCert nutzt Inline-PEM bevorzugt', () => {
+    it('_loadManualCert nutzt Inline-PEM bevorzugt', () => {
         const ctx = mockCtx({ appCertPem: 'CERT', appKeyPem: 'KEY' });
-        expect(ctx._loadStaticCert()).to.deep.equal({ cert: 'CERT', key: 'KEY' });
+        expect(ctx._loadManualCert()).to.deep.equal({ cert: 'CERT', key: 'KEY' });
     });
 
-    it('_loadStaticCert liest aus Dateipfaden', () => {
+    it('_loadManualCert liest aus Dateipfaden', () => {
         const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'leap-cert-'));
         const certFile = path.join(dir, 'app_cert.pem');
         const keyFile = path.join(dir, 'app_key.pem');
         fs.writeFileSync(certFile, 'FILECERT');
         fs.writeFileSync(keyFile, 'FILEKEY');
         const ctx = mockCtx({ appCertPath: certFile, appKeyPath: keyFile });
-        const result = ctx._loadStaticCert();
+        const result = ctx._loadManualCert();
         expect(result.cert).to.equal('FILECERT');
         expect(result.key).to.equal('FILEKEY');
         fs.rmSync(dir, { recursive: true, force: true });
     });
 
-    it('_loadStaticCert wirft bei fehlendem Material', () => {
+    it('_loadManualCert gibt null bei fehlendem Material zurück', () => {
         const ctx = mockCtx({});
-        expect(() => ctx._loadStaticCert()).to.throw();
+        expect(ctx._loadManualCert()).to.equal(null);
+    });
+});
+
+describe('Cert-Loader', () => {
+    const { validateCertPair, DEFAULT_CERT_URL_CRT, DEFAULT_CERT_URL_KEY } = require('../lib/certloader');
+
+    it('validateCertPair wirft bei fehlendem PEM-Zertifikat', () => {
+        expect(() => validateCertPair('kein cert', '-----BEGIN PRIVATE KEY-----')).to.throw(/app\.crt/);
+    });
+
+    it('validateCertPair wirft bei fehlendem privaten Schlüssel', () => {
+        expect(() => validateCertPair('-----BEGIN CERTIFICATE-----', 'kein key')).to.throw(/app\.key/);
+    });
+
+    it('Standard-URLs zeigen auf das Community-Repository', () => {
+        expect(DEFAULT_CERT_URL_CRT).to.match(/^https:\/\/.*app\.crt$/);
+        expect(DEFAULT_CERT_URL_KEY).to.match(/^https:\/\/.*app\.key$/);
     });
 });
