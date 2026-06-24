@@ -134,6 +134,8 @@ Hinweise:
 
 ### Steuerbefehle
 
+> 📋 Vollständige Referenz inkl. cmd-IDs und JSON-Formaten: **[docs/commands.md](docs/commands.md)**
+
 Schreibe auf die States unter `<VIN>.control.*`:
 
 **Verifiziert (aus der Original-HA-Integration):**
