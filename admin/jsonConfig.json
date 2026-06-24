@@ -51,7 +51,7 @@
         "certSource": {
           "type": "select",
           "label": "Zertifikatsquelle",
-          "def": "auto",
+          "default": "auto",
           "newLine": true,
           "sm": 12,
           "md": 6,
@@ -91,7 +91,6 @@
           "command": "loadCerts",
           "jsonData": "{\"certUrlCrt\": \"${data.certUrlCrt}\", \"certUrlKey\": \"${data.certUrlKey}\"}",
           "variant": "contained",
-          "showProcessState": true,
           "hidden": "data.certSource === 'manual'",
           "newLine": true,
           "sm": 12,
@@ -293,7 +292,6 @@
           "label": "Demo-Objekte anlegen",
           "command": "createDemoObjects",
           "variant": "contained",
-          "showProcessState": true,
           "newLine": true,
           "sm": 12,
           "md": 6,
@@ -304,7 +302,6 @@
           "label": "Demo-Objekte löschen",
           "command": "deleteDemoObjects",
           "variant": "outlined",
-          "showProcessState": true,
           "sm": 12,
           "md": 6,
           "lg": 4

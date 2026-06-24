@@ -36,7 +36,7 @@
   },
   "scripts": {
     "test:package": "mocha test/package.js --exit",
-    "test:unit": "mocha test/unit.js test/crypto.js --exit",
+    "test:unit": "mocha test/unit.js test/crypto.js test/jsonconfig.js --exit",
     "test:integration": "mocha test/integration.js --exit",
     "test": "npm run test:package && npm run test:unit",
     "smoke": "node test/smoke.js",
