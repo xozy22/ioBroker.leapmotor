@@ -136,6 +136,7 @@ Hinweise:
 
 Schreibe auf die States unter `<VIN>.control.*`:
 
+**Verifiziert (aus der Original-HA-Integration):**
 - `lock` (bool): `true` = verriegeln, `false` = entriegeln
 - `climate` (bool): Klima ein/aus
 - `charge_limit` (Zahl 50–100): Ladelimit in %
@@ -144,9 +145,21 @@ Schreibe auf die States unter `<VIN>.control.*`:
 - `find_car`, `unlock_charger`, `quick_cool`, `quick_heat`, `windshield_defrost` (Buttons)
 - `steering_wheel_heat`, `mirror_heat`, `battery_preheat` (bool)
 - `seat_heat_driver` / `seat_heat_passenger`, `seat_ventilation_driver` / `seat_ventilation_passenger` (0–3)
+- `send_destination`, `prepare_car`, `climate_schedule` (JSON-String, siehe State-Beschreibung)
 - `refresh` (Button): sofortige Aktualisierung
 
+**Zusätzlich (portiert aus [markoceri/leapmotor-api](https://github.com/markoceri/leapmotor-api), ⚠️ noch nicht am Fahrzeug verifiziert):**
+- `charging` (bool): Laden starten/stoppen
+- `sentry_mode` (bool): Wächtermodus
+- `healthy_charging` (bool): schonendes Laden
+- `on3` (bool), `fuel_heating` (bool, EREV)
+- `sunroof_open` / `sunroof_close` (echtes Schiebedach, Buttons)
+- `hotspot`, `autopark`, `ble_key_restart` (Buttons)
+- `speed_limit` (km/h), `music` / `video` (`play`/`pause`/`next`/`previous`)
+
 > Steuerbefehle benötigen eine konfigurierte Fahrzeug-PIN.
+> Die zusätzlichen Befehle stammen aus einem zweiten Community-Projekt und sind noch
+> nicht gegen ein echtes Fahrzeug getestet – mit Vorsicht verwenden und Rückmeldung willkommen.
 
 ## Wichtige Hinweise
 

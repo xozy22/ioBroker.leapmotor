@@ -166,3 +166,36 @@ describe('EVCC-Status', () => {
         expect(evccFor({ 1149: 1 })).to.equal('B');
     });
 });
+
+describe('Erweiterte Befehle (markoceri-Parität)', () => {
+    const { REMOTE_ACTION_SPECS } = require('../lib/remote');
+
+    it('enthält die neuen Aktions-Specs mit korrekten cmd-IDs', () => {
+        expect(REMOTE_ACTION_SPECS.charge_start).to.deep.equal({ cmdId: '193', cmdContent: '{"value":"start"}' });
+        expect(REMOTE_ACTION_SPECS.charge_stop.cmdContent).to.equal('{"value":"stop"}');
+        expect(REMOTE_ACTION_SPECS.sentry_mode_on).to.deep.equal({ cmdId: '220', cmdContent: '{"value":"1"}' });
+        expect(REMOTE_ACTION_SPECS.on3_on).to.deep.equal({ cmdId: '410', cmdContent: '{"on3":"on"}' });
+        expect(REMOTE_ACTION_SPECS.sunroof_open).to.deep.equal({ cmdId: '300', cmdContent: '{"value":"open"}' });
+        expect(REMOTE_ACTION_SPECS.healthy_charging_off.cmdId).to.equal('480');
+    });
+});
+
+describe('Erweiterte Lese-Datenpunkte (markoceri-Parität)', () => {
+    const { normalizeVehicle } = require('../lib/normalize');
+    const n = (signal) =>
+        normalizeVehicle(
+            { vehicle: { vin: 'V', car_type: 'C10', is_shared: false, abilities: [] }, status: { data: { signal } }, notifications: {} },
+            'u',
+        );
+
+    it('berechnet vorzeichenbehaftete Batterieleistung (Entladen positiv)', () => {
+        expect(n({ 1178: 25, 1177: 380 }).charging.battery_power_kw).to.equal(9.5);
+        expect(n({ 1178: -16, 1177: 400 }).charging.battery_power_kw).to.equal(-6.4);
+    });
+
+    it('liefert AC-Ladepistole und Reifen-Gesamtstatus', () => {
+        expect(n({ 47: 1 }).charging.ac_gun_connected).to.equal(true);
+        expect(n({ 2641: 0, 2648: 0, 2655: 0, 2662: 0 }).diagnostics.tire_pressure_all_ok).to.equal(true);
+        expect(n({ 2641: 0, 2648: 1, 2655: 0, 2662: 0 }).diagnostics.tire_pressure_all_ok).to.equal(false);
+    });
+});

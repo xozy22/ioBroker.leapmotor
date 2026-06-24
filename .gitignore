@@ -9,6 +9,7 @@ Thumbs.db
 # Lokale Referenz-Repos (nur zum Studieren, nicht Teil des Adapters)
 _ha_reference/
 _ca_reference/
+_markoceri_ref/
 
 # Zertifikate / Geheimnisse NIEMALS committen
 *.pem
