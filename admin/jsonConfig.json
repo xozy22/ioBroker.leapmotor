@@ -276,6 +276,38 @@
           "sm": 12,
           "md": 8,
           "lg": 6
+        },
+        "_demoHeader": {
+          "type": "header",
+          "text": "Test / Demo",
+          "size": 4,
+          "newLine": true
+        },
+        "_demoHint": {
+          "type": "staticText",
+          "text": "Legt unter dem Fahrzeug \"DEMO\" die komplette Objektstruktur mit Null-Werten an – ohne Fahrzeugverbindung. So kannst du Visualisierungen/Skripte gegen die Objektadressen vorbereiten. Die Instanz muss dafür laufen. Später wieder löschen.",
+          "newLine": true
+        },
+        "createDemoBtn": {
+          "type": "sendTo",
+          "label": "Demo-Objekte anlegen",
+          "command": "createDemoObjects",
+          "variant": "contained",
+          "showProcessState": true,
+          "newLine": true,
+          "sm": 12,
+          "md": 6,
+          "lg": 4
+        },
+        "deleteDemoBtn": {
+          "type": "sendTo",
+          "label": "Demo-Objekte löschen",
+          "command": "deleteDemoObjects",
+          "variant": "outlined",
+          "showProcessState": true,
+          "sm": 12,
+          "md": 6,
+          "lg": 4
         }
       }
     }

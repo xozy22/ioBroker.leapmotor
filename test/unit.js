@@ -199,3 +199,41 @@ describe('Erweiterte Lese-Datenpunkte (markoceri-Parität)', () => {
         expect(n({ 2641: 0, 2648: 1, 2655: 0, 2662: 0 }).diagnostics.tire_pressure_all_ok).to.equal(false);
     });
 });
+
+describe('Demo-Objekte', () => {
+    const P = LeapmotorAdapter.prototype;
+
+    function demoCtx() {
+        return {
+            objects: 0,
+            states: 0,
+            knownObjects: new Set(),
+            FORBIDDEN_CHARS: /[\][*,;'"`<>\\?]/g,
+            log: { debug() {}, info() {}, warn() {}, error() {} },
+            async setObjectNotExistsAsync() {
+                this.objects++;
+            },
+            async setStateAsync() {
+                this.states++;
+            },
+            _createDemoObjects: P._createDemoObjects,
+            _ensureVehicleObjects: P._ensureVehicleObjects,
+            _writeVehicleStates: P._writeVehicleStates,
+            _ensureObject: P._ensureObject,
+            _readStateObject: P._readStateObject,
+            _toStateValue: P._toStateValue,
+            _vinId: P._vinId,
+        };
+    }
+
+    it('legt die komplette Objektstruktur ohne Fahrzeugverbindung an', async () => {
+        const ctx = demoCtx();
+        const count = await ctx._createDemoObjects();
+        expect(count).to.be.greaterThan(100); // viele benannte Datenpunkte
+        expect(ctx.states).to.equal(count); // jeder Datenpunkt wird geschrieben
+        expect(ctx.objects).to.be.greaterThan(count); // zusätzlich Device + Kanäle + Controls
+        // Device + control-Kanal + Steuer-States wurden angelegt
+        expect([...ctx.knownObjects]).to.include('DEMO');
+        expect([...ctx.knownObjects]).to.include('DEMO.control.lock');
+    });
+});

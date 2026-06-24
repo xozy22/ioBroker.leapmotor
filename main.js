@@ -15,6 +15,9 @@ const { LeapmotorMissingAppCertError } = require('./lib/errors');
 const { downloadCerts, DEFAULT_CERT_URL_CRT, DEFAULT_CERT_URL_KEY } = require('./lib/certloader');
 const { buildAbrpTelemetry, sendAbrpTelemetry, DEFAULT_ABRP_API_KEY } = require('./lib/abrp');
 
+// VIN des Demo-Fahrzeugs (Objektstruktur ohne echte Daten zum Testen)
+const DEMO_VIN = 'DEMO';
+
 class LeapmotorAdapter extends utils.Adapter {
     constructor(options) {
         super({ ...options, name: 'leapmotor' });
@@ -221,6 +224,81 @@ class LeapmotorAdapter extends utils.Adapter {
             }
             if (obj.callback) {
                 this.sendTo(obj.from, obj.command, result, obj.callback);
+            }
+        } else if (obj.command === 'createDemoObjects') {
+            let result;
+            try {
+                const count = await this._createDemoObjects();
+                result = {
+                    result: `${count} Demo-Objekte unter "${DEMO_VIN}" angelegt (Null-Werte, ohne Fahrzeugverbindung).`,
+                };
+            } catch (err) {
+                result = { error: `Anlegen fehlgeschlagen: ${err.message}` };
+            }
+            if (obj.callback) {
+                this.sendTo(obj.from, obj.command, result, obj.callback);
+            }
+        } else if (obj.command === 'deleteDemoObjects') {
+            let result;
+            try {
+                await this._deleteDemoObjects();
+                result = { result: `Demo-Objekte unter "${DEMO_VIN}" gelöscht.` };
+            } catch (err) {
+                result = { error: `Löschen fehlgeschlagen: ${err.message}` };
+            }
+            if (obj.callback) {
+                this.sendTo(obj.from, obj.command, result, obj.callback);
+            }
+        }
+    }
+
+    /**
+     * Legt die komplette Objektstruktur eines Demo-Fahrzeugs mit Null-Werten an,
+     * ohne dass eine Fahrzeugverbindung nötig ist. Nutzt dieselbe Normalisierungs-
+     * und Objektlogik wie der echte Abruf, damit die Adressen identisch sind.
+     *
+     * @returns {Promise<number>} Anzahl angelegter States
+     */
+    async _createDemoObjects() {
+        const bundle = {
+            vehicle: {
+                vin: DEMO_VIN,
+                car_id: '0',
+                car_type: 'C10',
+                nickname: 'Demo-Fahrzeug',
+                is_shared: false,
+                year: 2024,
+                abilities: [],
+            },
+            status: { data: { signal: {} } },
+            mileage: null,
+            consumptionRank: null,
+            consumptionBreakdown: null,
+            picture: null,
+            chargingDaily: null,
+            notifications: { unread_count: null, last_message_title: null, last_message_time: null },
+        };
+        const normalized = normalizeVehicle(bundle, 'demo');
+        await this._ensureVehicleObjects(DEMO_VIN, normalized);
+        await this._writeVehicleStates(DEMO_VIN, normalized);
+
+        let count = 0;
+        for (const [channel, fields] of Object.entries(normalized)) {
+            if (channel !== 'raw_updated_at' && fields && typeof fields === 'object') {
+                count += Object.keys(fields).length;
+            }
+        }
+        return count;
+    }
+
+    /** Entfernt das Demo-Fahrzeug samt aller Unterobjekte. */
+    async _deleteDemoObjects() {
+        const base = this._vinId(DEMO_VIN);
+        await this.delObjectAsync(base, { recursive: true });
+        // Cache der bekannten Objekte bereinigen, damit ein erneutes Anlegen funktioniert
+        for (const id of [...this.knownObjects]) {
+            if (id === base || id.startsWith(`${base}.`)) {
+                this.knownObjects.delete(id);
             }
         }
     }
