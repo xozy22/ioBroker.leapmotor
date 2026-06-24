@@ -41,6 +41,16 @@ class LeapmotorAdapter extends utils.Adapter {
     async onReady() {
         this.setState('info.connection', false, true);
 
+        // Demo-Objekte beim Start anlegen (auch ohne Zugangsdaten), wenn aktiviert
+        if (this.config.demoMode) {
+            try {
+                const count = await this._createDemoObjects();
+                this.log.info(`Demo-Modus aktiv: ${count} Demo-Objekte unter "${DEMO_VIN}" angelegt (Null-Werte).`);
+            } catch (err) {
+                this.log.error(`Demo-Objekte konnten nicht angelegt werden: ${err.message}`);
+            }
+        }
+
         const config = this.config;
         if (!config.email || !config.password) {
             this.log.error('E-Mail und Passwort müssen in der Adapter-Konfiguration hinterlegt werden.');

@@ -284,7 +284,20 @@
         },
         "_demoHint": {
           "type": "staticText",
-          "text": "Legt unter dem Fahrzeug \"DEMO\" die komplette Objektstruktur mit Null-Werten an – ohne Fahrzeugverbindung. So kannst du Visualisierungen/Skripte gegen die Objektadressen vorbereiten. Die Instanz muss dafür laufen. Später wieder löschen.",
+          "text": "Legt unter dem Fahrzeug \"DEMO\" die komplette Objektstruktur mit Null-Werten an – ohne Fahrzeugverbindung. So kannst du Visualisierungen/Skripte gegen die Objektadressen vorbereiten. Später wieder löschen.",
+          "newLine": true
+        },
+        "demoMode": {
+          "type": "checkbox",
+          "label": "Demo-Objekte beim Start der Instanz anlegen (auch ohne Zugangsdaten)",
+          "newLine": true,
+          "sm": 12,
+          "md": 12,
+          "lg": 8
+        },
+        "_demoBtnHint": {
+          "type": "staticText",
+          "text": "Alternativ per Knopfdruck (Instanz muss laufen):",
           "newLine": true
         },
         "createDemoBtn": {

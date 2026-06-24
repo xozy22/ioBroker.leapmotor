@@ -44,6 +44,7 @@
     "readme": "https://github.com/xozy22/ioBroker.leapmotor/blob/main/README.md",
     "loglevel": "info",
     "mode": "daemon",
+    "messagebox": true,
     "type": "vehicle",
     "compact": true,
     "tier": 3,
@@ -84,7 +85,8 @@
     "ecoPollInterval": 15,
     "abrpEnabled": false,
     "abrpToken": "",
-    "abrpApiKey": ""
+    "abrpApiKey": "",
+    "demoMode": false
   },
   "encryptedNative": [
     "password",
