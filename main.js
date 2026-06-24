@@ -270,6 +270,10 @@ class LeapmotorAdapter extends utils.Adapter {
      * @returns {Promise<number>} Anzahl angelegter States
      */
     async _createDemoObjects() {
+        // Alten Demo-Baum entfernen, damit aktualisierte Objektdefinitionen (z. B.
+        // korrigierte Default-Werte) nach einem Update tatsächlich greifen.
+        await this._deleteDemoObjects();
+
         const bundle = {
             vehicle: {
                 vin: DEMO_VIN,
@@ -304,7 +308,11 @@ class LeapmotorAdapter extends utils.Adapter {
     /** Entfernt das Demo-Fahrzeug samt aller Unterobjekte. */
     async _deleteDemoObjects() {
         const base = this._vinId(DEMO_VIN);
-        await this.delObjectAsync(base, { recursive: true });
+        try {
+            await this.delObjectAsync(base, { recursive: true });
+        } catch {
+            // Baum existiert (noch) nicht – kein Fehler
+        }
         // Cache der bekannten Objekte bereinigen, damit ein erneutes Anlegen funktioniert
         for (const id of [...this.knownObjects]) {
             if (id === base || id.startsWith(`${base}.`)) {
@@ -453,13 +461,22 @@ class LeapmotorAdapter extends utils.Adapter {
             native: {},
         });
         for (const control of CONTROLS) {
+            let def;
+            if (control.type === 'boolean') {
+                def = false;
+            } else if (control.type === 'string') {
+                def = '';
+            } else {
+                // number: gültigen Standard innerhalb der Grenzen wählen
+                def = control.min !== undefined ? control.min : 0;
+            }
             const common = {
                 name: control.name,
                 type: control.type,
                 role: control.role,
                 read: true,
                 write: true,
-                def: control.type === 'boolean' ? false : 0,
+                def,
             };
             if (control.unit) {
                 common.unit = control.unit;

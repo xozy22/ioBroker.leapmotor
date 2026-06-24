@@ -207,16 +207,24 @@ describe('Demo-Objekte', () => {
         return {
             objects: 0,
             states: 0,
+            createdObjects: {},
+            writtenStates: {},
             knownObjects: new Set(),
             FORBIDDEN_CHARS: /[\][*,;'"`<>\\?]/g,
             log: { debug() {}, info() {}, warn() {}, error() {} },
-            async setObjectNotExistsAsync() {
+            async setObjectNotExistsAsync(id, obj) {
                 this.objects++;
+                this.createdObjects[id] = obj;
             },
-            async setStateAsync() {
+            async setStateAsync(id, val) {
                 this.states++;
+                this.writtenStates[id] = val;
+            },
+            async delObjectAsync() {
+                this.deleted = (this.deleted || 0) + 1;
             },
             _createDemoObjects: P._createDemoObjects,
+            _deleteDemoObjects: P._deleteDemoObjects,
             _ensureVehicleObjects: P._ensureVehicleObjects,
             _writeVehicleStates: P._writeVehicleStates,
             _ensureObject: P._ensureObject,
@@ -232,8 +240,25 @@ describe('Demo-Objekte', () => {
         expect(count).to.be.greaterThan(100); // viele benannte Datenpunkte
         expect(ctx.states).to.equal(count); // jeder Datenpunkt wird geschrieben
         expect(ctx.objects).to.be.greaterThan(count); // zusätzlich Device + Kanäle + Controls
-        // Device + control-Kanal + Steuer-States wurden angelegt
         expect([...ctx.knownObjects]).to.include('DEMO');
         expect([...ctx.knownObjects]).to.include('DEMO.control.lock');
+    });
+
+    it('vergibt für jeden Steuer-State einen typgerechten Default innerhalb der Grenzen', async () => {
+        const ctx = demoCtx();
+        await ctx._createDemoObjects();
+        const controls = Object.entries(ctx.createdObjects).filter(([id]) => id.startsWith('DEMO.control.'));
+        expect(controls.length).to.be.greaterThan(30);
+        for (const [id, obj] of controls) {
+            const { type, def, min } = obj.common;
+            expect(typeof def, `${id} def-Typ`).to.equal(type); // def-Typ == State-Typ
+            if (type === 'number' && min !== undefined) {
+                expect(def, `${id} def >= min`).to.be.at.least(min);
+            }
+        }
+        // konkrete Stichproben für die zuvor fehlerhaften Fälle
+        expect(ctx.createdObjects['DEMO.control.music'].common.def).to.equal('');
+        expect(ctx.createdObjects['DEMO.control.charge_limit'].common.def).to.equal(50);
+        expect(ctx.createdObjects['DEMO.control.lock'].common.def).to.equal(false);
     });
 });
