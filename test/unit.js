@@ -107,3 +107,62 @@ describe('Cert-Loader', () => {
         expect(DEFAULT_CERT_URL_KEY).to.match(/^https:\/\/.*app\.key$/);
     });
 });
+
+describe('ABRP-Telemetrie', () => {
+    const { buildAbrpTelemetry, DEFAULT_ABRP_API_KEY } = require('../lib/abrp');
+
+    const normalized = {
+        status: { battery_percent: 82, remaining_range_km: 310, odometer_km: 12345 },
+        location: { latitude: 52.5, longitude: 13.4 },
+        charging: { is_charging: true, charging_current_a: -16.5, charging_voltage_v: 230 },
+    };
+
+    it('baut eine vollständige Telemetrie mit fixem Zeitstempel', () => {
+        const t = buildAbrpTelemetry(normalized, 1700000000000);
+        expect(t).to.deep.equal({
+            utc: 1700000000,
+            soc: 82,
+            est_battery_range: 310,
+            is_charging: true,
+            odometer: 12345,
+            speed: 0,
+            lat: 52.5,
+            lon: 13.4,
+            current: -16.5,
+            voltage: 230,
+        });
+    });
+
+    it('lässt Position bei 0/0 oder veralteten Daten weg', () => {
+        const t1 = buildAbrpTelemetry({ status: { battery_percent: 50 }, location: { latitude: 0, longitude: 0 }, charging: {} });
+        expect(t1).to.not.have.keys('lat', 'lon');
+        const t2 = buildAbrpTelemetry({
+            status: { battery_percent: 50 },
+            location: { latitude: 52, longitude: 13, location_is_stale: true },
+            charging: {},
+        });
+        expect(t2).to.not.have.property('lat');
+    });
+
+    it('Standard-API-Key hat das erwartete Format', () => {
+        expect(DEFAULT_ABRP_API_KEY).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    });
+});
+
+describe('EVCC-Status', () => {
+    const { normalizeVehicle } = require('../lib/normalize');
+
+    function evccFor(signal) {
+        return normalizeVehicle({ vehicle: { vin: 'V', car_type: 'C10', is_shared: false, abilities: [] }, status: { data: { signal } }, notifications: {} }, 'u')
+            .charging.evcc_status;
+    }
+
+    it('mappt Verbindungszustand auf A/B/C', () => {
+        // lädt (Strom fließt) -> C
+        expect(evccFor({ 1178: -16, 1177: 230, 1200: 30 })).to.equal('C');
+        // getrennt -> A
+        expect(evccFor({ 1149: 0 })).to.equal('A');
+        // eingesteckt, lädt nicht -> B
+        expect(evccFor({ 1149: 1 })).to.equal('B');
+    });
+});

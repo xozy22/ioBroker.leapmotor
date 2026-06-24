@@ -18,6 +18,8 @@ wurde aus dem Python-Projekt übernommen.
 - **Fernsteuerung** (PIN erforderlich): Ver-/Entriegeln, Klima ein/aus, Kofferraum, Fenster, Sonnenrollo, Ladelimit, Ladeplan, Sitz-/Lenkrad-/Spiegelheizung, Batterievorheizung, Schnellkühlung/-heizung, Frontscheibenenteisung, Fahrzeug suchen, Ladestecker entriegeln
 - **Mehrere Fahrzeuge** (eigene und geteilte)
 - Optionales **Eco-Polling** (seltener abrufen, wenn das Fahrzeug ruht)
+- Optionaler **ABRP-Telemetrie-Push** (A Better Routeplanner) für Live-Routenplanung
+- **EVCC-Status** (`charging.evcc_status` als A/B/C) für die Einbindung in [evcc](https://evcc.io)
 
 ## Voraussetzungen
 
@@ -120,8 +122,15 @@ Pro Fahrzeug wird ein Gerät `leapmotor.<instanz>.<VIN>` mit folgenden Kanälen 
 <VIN>.diagnostics.*      Türen, Fenster, Reifendruck, Klima, Sitze, ...
 <VIN>.raw.*              Alle numerischen Rohsignale
 <VIN>.notifications.*    Konto-Benachrichtigungen
+<VIN>.abrp.*             Ergebnis des ABRP-Telemetrie-Push (falls aktiviert)
 <VIN>.control.*          Schreibbare Steuerbefehle
 ```
+
+Hinweise:
+- `charging.evcc_status` liefert den Ladezustand als EVCC-Buchstabe (A = getrennt,
+  B = verbunden, C = lädt) – direkt in evcc als `charge status` nutzbar.
+- ABRP wird im Tab *ABRP / EVCC* aktiviert (ABRP-Token erforderlich, im ABRP-Konto
+  ein Fahrzeug vom Typ „Generic" anlegen).
 
 ### Steuerbefehle
 

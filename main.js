@@ -13,6 +13,7 @@ const { normalizeVehicle } = require('./lib/normalize');
 const { CHANNEL_NAMES, STATE_META, CONTROLS } = require('./lib/states');
 const { LeapmotorMissingAppCertError } = require('./lib/errors');
 const { downloadCerts, DEFAULT_CERT_URL_CRT, DEFAULT_CERT_URL_KEY } = require('./lib/certloader');
+const { buildAbrpTelemetry, sendAbrpTelemetry, DEFAULT_ABRP_API_KEY } = require('./lib/abrp');
 
 class LeapmotorAdapter extends utils.Adapter {
     constructor(options) {
@@ -73,6 +74,10 @@ class LeapmotorAdapter extends utils.Adapter {
         this.normalIntervalMs = Math.max(1, parseInt(config.pollInterval, 10) || 5) * 60 * 1000;
         this.ecoIntervalMs = Math.max(1, parseInt(config.ecoPollInterval, 10) || 15) * 60 * 1000;
         this.ecoPollingEnabled = Boolean(config.ecoPollingEnabled);
+
+        this.abrpEnabled = Boolean(config.abrpEnabled);
+        this.abrpToken = config.abrpToken || '';
+        this.abrpApiKey = (config.abrpApiKey && config.abrpApiKey.trim()) || DEFAULT_ABRP_API_KEY;
 
         await this.subscribeStatesAsync('*.control.*');
 
@@ -254,6 +259,9 @@ class LeapmotorAdapter extends utils.Adapter {
 
             for (const vin of vins) {
                 const normalized = normalizeVehicle(data.vehicles[vin], data.user_id);
+                if (this.abrpEnabled && this.abrpToken) {
+                    normalized.abrp = await this._pushAbrp(vin, normalized);
+                }
                 await this._ensureVehicleObjects(vin, normalized);
                 await this._writeVehicleStates(vin, normalized);
                 if (normalized.status.is_driving || normalized.charging.is_charging) {
@@ -267,6 +275,44 @@ class LeapmotorAdapter extends utils.Adapter {
             this.polling = false;
             const interval = this.ecoPollingEnabled && !anyActive ? this.ecoIntervalMs : this.normalIntervalMs;
             this._scheduleNextPoll(interval);
+        }
+    }
+
+    /**
+     * Sendet die Fahrzeug-Telemetrie an ABRP und liefert das Ergebnis als State-Block.
+     *
+     * @param {string} vin
+     * @param {object} normalized
+     * @returns {Promise<object>}
+     */
+    async _pushAbrp(vin, normalized) {
+        const telemetry = buildAbrpTelemetry(normalized);
+        const telemetryKeys = Object.keys(telemetry).sort().join(',');
+        const lastPush = Date.now();
+        try {
+            const result = await sendAbrpTelemetry({
+                apiKey: this.abrpApiKey,
+                token: this.abrpToken,
+                telemetry,
+            });
+            return {
+                enabled: true,
+                status: result.status || 'ok',
+                success: true,
+                last_push: lastPush,
+                error: null,
+                telemetry_keys: telemetryKeys,
+            };
+        } catch (err) {
+            this.log.debug(`ABRP-Push für VIN ${vin} fehlgeschlagen: ${err.message}`);
+            return {
+                enabled: true,
+                status: 'error',
+                success: false,
+                last_push: lastPush,
+                error: err.message,
+                telemetry_keys: telemetryKeys,
+            };
         }
     }
 

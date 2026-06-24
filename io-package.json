@@ -81,19 +81,24 @@
     "deviceId": "",
     "pollInterval": 5,
     "ecoPollingEnabled": false,
-    "ecoPollInterval": 15
+    "ecoPollInterval": 15,
+    "abrpEnabled": false,
+    "abrpToken": "",
+    "abrpApiKey": ""
   },
   "encryptedNative": [
     "password",
     "vehiclePin",
-    "accountP12Password"
+    "accountP12Password",
+    "abrpToken"
   ],
   "protectedNative": [
     "password",
     "vehiclePin",
     "accountP12Password",
     "appCertPem",
-    "appKeyPem"
+    "appKeyPem",
+    "abrpToken"
   ],
   "objects": [],
   "instanceObjects": [

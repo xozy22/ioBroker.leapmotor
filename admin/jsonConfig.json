@@ -190,6 +190,49 @@
         }
       }
     },
+    "abrpTab": {
+      "type": "panel",
+      "label": "ABRP / EVCC",
+      "items": {
+        "_abrpHeader": {
+          "type": "staticText",
+          "text": "ABRP (A Better Routeplanner): sendet nach jedem Abruf Live-Telemetrie (Ladezustand, Position, Lade-Strom/-Spannung) an ABRP, damit die Routenplanung mit echten Werten rechnet. Du benötigst einen ABRP-Token: in der ABRP-App ein Fahrzeug vom Typ 'Generic' anlegen und dort den Telemetrie-Token kopieren.",
+          "newLine": true
+        },
+        "abrpEnabled": {
+          "type": "checkbox",
+          "label": "ABRP-Telemetrie senden",
+          "newLine": true,
+          "sm": 12,
+          "md": 6,
+          "lg": 4
+        },
+        "abrpToken": {
+          "type": "password",
+          "label": "ABRP-Token",
+          "repeat": false,
+          "hidden": "!data.abrpEnabled",
+          "newLine": true,
+          "sm": 12,
+          "md": 8,
+          "lg": 6
+        },
+        "abrpApiKey": {
+          "type": "text",
+          "label": "ABRP-API-Key (optional, leer = Standard)",
+          "hidden": "!data.abrpEnabled",
+          "newLine": true,
+          "sm": 12,
+          "md": 8,
+          "lg": 6
+        },
+        "_evccHint": {
+          "type": "staticText",
+          "text": "EVCC: Der Status-Datenpunkt charging.evcc_status (A = getrennt, B = verbunden, C = lädt) wird automatisch bereitgestellt und benötigt keine Konfiguration.",
+          "newLine": true
+        }
+      }
+    },
     "advancedTab": {
       "type": "panel",
       "label": "Erweitert",
