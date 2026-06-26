@@ -186,6 +186,22 @@
           "sm": 12,
           "md": 4,
           "lg": 3
+        },
+        "_cooldownHint": {
+          "type": "staticText",
+          "text": "Das Status-Lesen kontaktiert das Fahrzeug NICHT (nur die Cloud). Steuerbefehle dagegen wecken das Fahrzeug. Der Cooldown verhindert zu häufige Steuerbefehle und schützt so die 12V-Batterie.",
+          "newLine": true
+        },
+        "commandCooldown": {
+          "type": "number",
+          "label": "Mindestabstand zwischen Steuerbefehlen (Sekunden, 0 = aus)",
+          "min": 0,
+          "max": 600,
+          "default": 10,
+          "newLine": true,
+          "sm": 12,
+          "md": 6,
+          "lg": 4
         }
       }
     },

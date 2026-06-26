@@ -200,6 +200,54 @@ describe('Erweiterte Lese-Datenpunkte (markoceri-Parität)', () => {
     });
 });
 
+describe('Datenalter / Frische', () => {
+    const { normalizeVehicle } = require('../lib/normalize');
+    const NOW = 1700000000000;
+    const ageNorm = (sts) =>
+        normalizeVehicle(
+            { vehicle: { vin: 'V', car_type: 'C10', is_shared: false, abilities: [] }, status: { data: { signal: { sts } } }, notifications: {} },
+            'u',
+            NOW,
+        );
+
+    it('berechnet das Datenalter aus collectTime (Sekunden- und ms-Format)', () => {
+        expect(ageNorm(NOW / 1000 - 300).status.data_age_seconds).to.equal(300); // Sekunden
+        expect(ageNorm(NOW - 60000).status.data_age_seconds).to.equal(60); // Millisekunden
+        expect(ageNorm(undefined).status.data_age_seconds).to.equal(null);
+    });
+
+    it('markiert Daten älter als 15 Minuten als veraltet', () => {
+        expect(ageNorm(NOW / 1000 - 300).diagnostics.data_is_stale).to.equal(false);
+        expect(ageNorm(NOW / 1000 - 1200).diagnostics.data_is_stale).to.equal(true);
+        expect(ageNorm(undefined).diagnostics.data_is_stale).to.equal(null);
+    });
+});
+
+describe('Befehls-Cooldown', () => {
+    const P = LeapmotorAdapter.prototype;
+    const ctx = (cooldownMs) => ({
+        commandCooldownMs: cooldownMs,
+        lastCommandTime: new Map(),
+        _commandAllowed: P._commandAllowed,
+    });
+
+    it('erlaubt den ersten Befehl und sperrt zu schnelle Folgebefehle', () => {
+        const c = ctx(10000);
+        expect(c._commandAllowed('V', 1000).allowed).to.equal(true);
+        c.lastCommandTime.set('V', 1000);
+        const blocked = c._commandAllowed('V', 6000);
+        expect(blocked.allowed).to.equal(false);
+        expect(blocked.remaining).to.equal(5);
+        expect(c._commandAllowed('V', 12000).allowed).to.equal(true); // nach Ablauf
+    });
+
+    it('ist deaktivierbar (Cooldown 0)', () => {
+        const c = ctx(0);
+        c.lastCommandTime.set('V', 1000);
+        expect(c._commandAllowed('V', 1001).allowed).to.equal(true);
+    });
+});
+
 describe('Demo-Objekte', () => {
     const P = LeapmotorAdapter.prototype;
 

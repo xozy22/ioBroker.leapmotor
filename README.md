@@ -163,6 +163,21 @@ Schreibe auf die States unter `<VIN>.control.*`:
 > Die zusätzlichen Befehle stammen aus einem zweiten Community-Projekt und sind noch
 > nicht gegen ein echtes Fahrzeug getestet – mit Vorsicht verwenden und Rückmeldung willkommen.
 
+## Polling, Datenfrische & 12V-Batterie
+
+Der Adapter liest **ausschließlich den Cloud-Zwischenspeicher** — das **Status-Lesen
+kontaktiert das Fahrzeug nicht** und belastet die 12V-Batterie nicht (unabhängig vom
+Intervall). Das Fahrzeug meldet seinen Zustand von sich aus an die Cloud; der Adapter
+liest nur den letzten gemeldeten Stand. Nur **Steuerbefehle** (`control.*`) gehen
+tatsächlich bis ans Fahrzeug.
+
+Zwei Helfer dafür:
+- **`status.data_age_seconds`** + **`diagnostics.data_is_stale`** (> 15 Min): zeigen, wie
+  alt der zwischengespeicherte Stand ist (Differenz zu `last_vehicle_timestamp` /
+  `collectTime`). So siehst du, wann sich dein Auto zuletzt gemeldet hat.
+- **Cooldown für Steuerbefehle** (Tab *Abruf*, Standard 10 s): verhindert zu häufige
+  Steuerbefehle und schützt damit die 12V-Batterie. `0` deaktiviert ihn.
+
 ## Wichtige Hinweise
 
 - Inoffizielles Projekt, **nicht** von Leapmotor unterstützt oder freigegeben.

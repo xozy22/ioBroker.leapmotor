@@ -27,6 +27,8 @@ class LeapmotorAdapter extends utils.Adapter {
         this.stopping = false;
         this.knownObjects = new Set();
         this.controlMap = new Map(); // controlId -> control-Definition
+        this.lastCommandTime = new Map(); // vin -> Zeitstempel des letzten Steuerbefehls
+        this.commandCooldownMs = 0;
 
         for (const control of CONTROLS) {
             this.controlMap.set(control.id, control);
@@ -91,6 +93,9 @@ class LeapmotorAdapter extends utils.Adapter {
         this.abrpEnabled = Boolean(config.abrpEnabled);
         this.abrpToken = config.abrpToken || '';
         this.abrpApiKey = (config.abrpApiKey && config.abrpApiKey.trim()) || DEFAULT_ABRP_API_KEY;
+
+        // Mindestabstand zwischen Steuerbefehlen je Fahrzeug (0 = aus)
+        this.commandCooldownMs = Math.max(0, parseInt(config.commandCooldown, 10) || 0) * 1000;
 
         await this.subscribeStatesAsync('*.control.*');
 
@@ -593,6 +598,20 @@ class LeapmotorAdapter extends utils.Adapter {
             return;
         }
 
+        // Cooldown: schützt die 12V-Batterie, da Steuerbefehle (anders als das Lesen)
+        // tatsächlich das Fahrzeug kontaktieren. Zu schnelle Befehle werden abgelehnt.
+        const cooldown = this._commandAllowed(vin);
+        if (!cooldown.allowed) {
+            this.log.warn(
+                `Steuerbefehl '${controlId}' abgelehnt: Cooldown aktiv (noch ${cooldown.remaining}s, schützt die 12V-Batterie).`,
+            );
+            await this.setStateAsync(id, { val: state.val, ack: true });
+            return;
+        }
+        if (this.commandCooldownMs > 0) {
+            this.lastCommandTime.set(vin, Date.now());
+        }
+
         try {
             this.log.info(`Steuerbefehl '${controlId}' für VIN ${vin} (Wert: ${state.val})`);
             await control.handler(this.client, vin, state.val);
@@ -602,6 +621,29 @@ class LeapmotorAdapter extends utils.Adapter {
         } catch (err) {
             this.log.error(`Steuerbefehl '${controlId}' fehlgeschlagen: ${err.message}`);
         }
+    }
+
+    /**
+     * Prüft, ob für die VIN aktuell ein Steuerbefehl erlaubt ist (Cooldown abgelaufen).
+     *
+     * @param {string} vin
+     * @param {number} [nowMs]
+     * @returns {{allowed: boolean, remaining: number}}
+     */
+    _commandAllowed(vin, nowMs = Date.now()) {
+        if (this.commandCooldownMs <= 0) {
+            return { allowed: true, remaining: 0 };
+        }
+        const last = this.lastCommandTime.get(vin);
+        if (!last) {
+            // noch kein Steuerbefehl für dieses Fahrzeug -> immer erlaubt
+            return { allowed: true, remaining: 0 };
+        }
+        const elapsed = nowMs - last;
+        if (elapsed < this.commandCooldownMs) {
+            return { allowed: false, remaining: Math.ceil((this.commandCooldownMs - elapsed) / 1000) };
+        }
+        return { allowed: true, remaining: 0 };
     }
 
     _scheduleQuickRefresh() {

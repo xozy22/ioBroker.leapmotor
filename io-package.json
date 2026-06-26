@@ -83,6 +83,7 @@
     "pollInterval": 5,
     "ecoPollingEnabled": false,
     "ecoPollInterval": 15,
+    "commandCooldown": 10,
     "abrpEnabled": false,
     "abrpToken": "",
     "abrpApiKey": "",
