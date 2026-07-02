@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="admin/logo.png" alt="Leapmotor ioBroker Adapter" width="280" />
+</p>
+
 # ioBroker.leapmotor
 
 Inoffizieller ioBroker-Adapter für **Leapmotor-Elektrofahrzeuge** (Leapmotor International, z. B. T03, C10, B10).
